@@ -1,2 +1,0 @@
-PASS jump unit: PC+4 upper bits, index shift, disabled mux
-/home/khoa_truong2805/sv_project/single_clock_cycle/tb/jump_tb.sv:14: $finish called at 3000 (1ps)

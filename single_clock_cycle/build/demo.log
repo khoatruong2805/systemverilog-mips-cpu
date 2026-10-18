@@ -1,2 +1,0 @@
-PASS demo: 10 checks on original machine-code program
-/home/khoa_truong2805/sv_project/single_clock_cycle/tb/datapath_tb.sv:26: $finish called at 100000 (1ps)
