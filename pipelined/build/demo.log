@@ -1,0 +1,2 @@
+PASS demo: r3=15 r4=15 r5=20 memory[0]=15
+/home/khoa_truong2805/sv_project/pipelined/tb/pipeline_tb.sv:18: $finish called at 420000 (1ps)
