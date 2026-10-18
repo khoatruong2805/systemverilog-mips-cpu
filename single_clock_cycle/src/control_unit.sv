@@ -1,66 +1,41 @@
+`timescale 1ns/1ps
 module main_control(
-    input  logic [5:0] control,
-    input  logic       flush,
-    output logic       branch,
-    output logic       RegWrite,
-    output logic       ALUSrc,
-    output logic       MemWrite,
-    output logic       MemRead,
-    output logic       MemToReg,
-    output logic       Jump,
-    output logic [1:0] AluOP,
-    output logic       RegDst
+    input logic [5:0] control, funct,
+    input logic rst,
+    output logic branch, RegWrite, ALUSrc, MemWrite, MemRead,
+    output logic MemToReg, Jump,
+    output logic [2:0] AluOP,
+    output logic RegDst
 );
     always_comb begin
-        if (flush) begin
-            RegDst = 0;   RegWrite = 0;  ALUSrc = 0;
-            MemRead = 0;  MemWrite = 0;  Jump = 0;
-            branch = 0;   MemToReg = 0;  AluOP = 2'b00; 
-        end
-        else begin
+        branch = 0; RegWrite = 0; ALUSrc = 0; MemWrite = 0;
+        MemRead = 0; MemToReg = 0; Jump = 0; AluOP = 3'b000; RegDst = 0;
+        if (!rst) begin
             case (control)
-                // R-type (ADD, SUB, AND, OR, SLT)
-                6'b000000: begin
-                    RegDst = 1;   RegWrite = 1;  ALUSrc = 0;
-                    MemRead = 0;  MemWrite = 0;  Jump = 0;
-                    branch = 0;   MemToReg = 0;  AluOP = 2'b10; // 10 cho R-Type
+                6'h00: begin
+                    RegDst = 1;
+                    AluOP = 3'b010;
+                    case (funct)
+                        6'h20, 6'h22, 6'h24, 6'h25, 6'h2a: RegWrite = 1;
+                        default: RegWrite = 0; // NOP / unsupported R-type
+                    endcase
                 end
-                // ADDI, ANDI, ORI, SLTI (Nhóm Immediate)
-                6'b001000, 6'b001100, 6'b001101, 6'b001010: begin
-                    RegDst = 0;   RegWrite = 1;  ALUSrc = 1;
-                    MemRead = 0;  MemWrite = 0;  Jump = 0;
-                    branch = 0;   MemToReg = 0;  AluOP = 2'b00; // Mượn ALU làm tính toán cơ bản
+                6'h08, 6'h0c, 6'h0d, 6'h0a: begin
+                    RegWrite = 1; ALUSrc = 1;
+                    case (control)
+                        6'h0c: AluOP = 3'b011;
+                        6'h0d: AluOP = 3'b100;
+                        6'h0a: AluOP = 3'b101;
+                        default: AluOP = 3'b000;
+                    endcase
                 end
-                // LW (Load Word)
-                6'b100011: begin
-                    RegDst = 0;   RegWrite = 1;  ALUSrc = 1;
-                    MemRead = 1;  MemWrite = 0;  Jump = 0;
-                    branch = 0;   MemToReg = 1;  AluOP = 2'b00; // 00 cho ALU làm phép cộng địa chỉ
+                6'h23: begin
+                    RegWrite = 1; ALUSrc = 1; MemRead = 1; MemToReg = 1;
                 end
-                // SW (Store Word)
-                6'b101011: begin
-                    RegDst = 0;   RegWrite = 0;  ALUSrc = 1;
-                    MemRead = 0;  MemWrite = 1;  Jump = 0;
-                    branch = 0;   MemToReg = 0;  AluOP = 2'b00; // 00 cho ALU làm phép cộng địa chỉ
-                end
-                // BEQ (Branch if Equal)
-                6'b000100: begin
-                    RegDst = 0;   RegWrite = 0;  ALUSrc = 0;
-                    MemRead = 0;  MemWrite = 0;  Jump = 0;
-                    branch = 1;   MemToReg = 0;  AluOP = 2'b01; // 01 cho ALU làm phép trừ
-                end
-                // J (Jump)
-                6'b000010: begin
-                    RegDst = 0;   RegWrite = 0;  ALUSrc = 0;
-                    MemRead = 0;  MemWrite = 0;  Jump = 1;
-                    branch = 0;   MemToReg = 0;  AluOP = 2'b00; // Không quan tâm ALU làm gì
-                end
-                // Default case (Tránh sinh ra chốt Latch ngoài ý muốn)
-                default: begin
-                    RegDst = 0;   RegWrite = 0;  ALUSrc = 0;
-                    MemRead = 0;  MemWrite = 0;  Jump = 0;
-                    branch = 0;   MemToReg = 0;  AluOP = 2'b00; 
-                end
+                6'h2b: begin ALUSrc = 1; MemWrite = 1; end
+                6'h04: begin branch = 1; AluOP = 3'b001; end
+                6'h02: Jump = 1;
+                default: begin end // Unsupported opcode has no side effects.
             endcase
         end
     end

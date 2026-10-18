@@ -1,0 +1,4 @@
+FATAL: /home/khoa_truong2805/sv_project/single_clock_cycle/src/datapath.sv:108: Invalid instruction fetch: PC=00000100 instruction=xxxxxxxx
+       Time: 35000  Scope: fetch_guard_tb.dut
+FATAL: /home/khoa_truong2805/sv_project/single_clock_cycle/src/datapath.sv:108: Invalid instruction fetch: PC=00000000 instruction=xxxxxxxx
+       Time: 25000  Scope: fetch_guard_tb.dut

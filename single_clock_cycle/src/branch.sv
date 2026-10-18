@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 module branch(
     input logic branch,
     input logic is_zero,

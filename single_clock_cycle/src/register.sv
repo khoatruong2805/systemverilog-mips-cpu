@@ -1,5 +1,7 @@
+`timescale 1ns/1ps
 module register(
     input logic clk,
+    input logic rst,
     input logic [4:0] ReadReg1,
     input logic [4:0] ReadReg2,
     input logic RegWrite,
@@ -12,7 +14,9 @@ module register(
     assign ReadData1 = (ReadReg1 == 5'b00000) ? 32'b0 : data[ReadReg1];
     assign ReadData2 = (ReadReg2 == 5'b00000) ? 32'b0 : data[ReadReg2];
     always_ff @(posedge clk) begin
-        if (RegWrite && WriteReg != 5'b00000) begin
+        if (rst) begin
+            for (int i = 0; i < 32; i++) data[i] <= 32'd0;
+        end else if (RegWrite && WriteReg != 5'b00000) begin
             data[WriteReg] <= WriteData;
         end
     end

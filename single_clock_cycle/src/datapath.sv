@@ -1,4 +1,5 @@
-module datapath_single_cycle(
+`timescale 1ns/1ps
+module datapath_single_cycle #(parameter PROGRAM_FILE = "tb/machine_code.txt")(
     input logic clk,
     input logic rst
 );
@@ -9,7 +10,7 @@ module datapath_single_cycle(
     logic MemToReg;
     logic MemWrite;
     logic MemRead;
-    logic [1:0] ALUOp;
+    logic [2:0] ALUOp;
     logic ALUSrc;
     logic RegWrite;
     logic jump;
@@ -25,12 +26,16 @@ module datapath_single_cycle(
     logic [31:0] if_branch;
     logic [31:0] next_pc_branch;
     logic [31:0] next_pc;
-    assign sign_extend = {{16{instruction[15]}},instruction[15:0]};
-    instruction_mem u_instruction_mem(
+    assign sign_extend = (instruction[31:26] == 6'h0c || instruction[31:26] == 6'h0d)
+        ? {16'd0, instruction[15:0]}
+        : {{16{instruction[15]}}, instruction[15:0]};
+    instruction_mem #(.PROGRAM_FILE(PROGRAM_FILE)) u_instruction_mem(
         .instruction_address(current_pc),
         .instruction(instruction)
     );
     main_control u_main_control(
+        .rst(rst),
+        .funct(instruction[5:0]),
         .control(instruction[31:26]),
         .branch(Branch),
         .RegWrite(RegWrite),
@@ -43,10 +48,11 @@ module datapath_single_cycle(
         .RegDst(RegDst)
     );
     register u_register(
+        .rst(rst),
         .clk(clk),
         .ReadReg1(instruction[25:21]),
         .ReadReg2(instruction[20:16]),
-        .RegWrite(RegWrite),
+        .RegWrite(RegWrite && !rst),
         .WriteReg(RegDst ? instruction[15:11] : instruction[20:16]),
         .WriteData(MemToReg ? ReadData : alu_result),
         .ReadData1(ReadData1),
@@ -67,13 +73,13 @@ module datapath_single_cycle(
     );
     data_mem u_data_mem(
         .clk(clk),
-        .MemWrite(MemWrite),
-        .MemRead(MemRead),
+        .MemWrite(MemWrite && !rst),
+        .MemRead(MemRead && !rst),
         .address(alu_result),
         .WriteData(ReadData2),
         .ReadData(ReadData)
     );
-    assign pc_plus_4 = current_pc + 3'b100;
+    assign pc_plus_4 = current_pc + 32'd4;
     assign shift_signed_extend = {sign_extend[29:0], 2'b00};
     assign if_branch = pc_plus_4 + shift_signed_extend;
     branch u_branch(
@@ -84,6 +90,7 @@ module datapath_single_cycle(
         .next_pc(next_pc_branch)
     );
     jump u_jump(
+        .pc_plus_4(pc_plus_4),
         .not_jump(next_pc_branch),
         .jump(jump),
         .is_jump(instruction[25:0]),
@@ -95,4 +102,11 @@ module datapath_single_cycle(
         .next_pc(next_pc),
         .pc_out(current_pc)
     );
+    // synthesis translate_off
+    always @(posedge clk) begin
+        if (!rst && ((^current_pc) === 1'bx || current_pc >= 256 ||
+                     current_pc[1:0] != 0 || (^instruction) === 1'bx))
+            $fatal(1, "Invalid instruction fetch: PC=%h instruction=%h", current_pc, instruction);
+    end
+    // synthesis translate_on
 endmodule

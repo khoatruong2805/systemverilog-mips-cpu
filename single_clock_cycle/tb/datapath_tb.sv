@@ -1,61 +1,29 @@
-`timescale 1ns / 1ps // Định nghĩa đơn vị thời gian (1ns) và độ phân giải (1ps)
-
-module datapath_single_cycle_tb();
-
-    // ==========================================
-    // 1. KHAI BÁO TÍN HIỆU
-    // ==========================================
-    logic clk;
-    logic rst;
-
-    // ==========================================
-    // 2. KHỞI TẠO BỘ VI XỬ LÝ (DATAPATH)
-    // ==========================================
-    datapath_single_cycle u_cpu(
-        .clk(clk),
-        .rst(rst)
-    );
-
-    // ==========================================
-    // 3. TẠO XUNG NHỊP (CLOCK GENERATOR)
-    // ==========================================
-    // Cứ sau 5ns thì đảo trạng thái clk 1 lần -> Chu kỳ = 10ns
-    always #5 clk = ~clk;
-
-    // ==========================================
-    // 4. KỊCH BẢN CHẠY MÔ PHỎNG (STIMULUS)
-    // ==========================================
+`timescale 1ns/1ps
+module datapath_single_cycle_tb;
+    logic clk=0, rst=1;
+    datapath_single_cycle u_cpu(.clk(clk), .rst(rst));
+    always #5 clk=~clk;
+    task automatic check(input string name,input logic[31:0] got,want);
+        if(got !== want) $fatal(1,"%s: got %h expected %h",name,got,want);
+    endtask
     initial begin
-        // A. Cấu hình xuất file sóng (Waveform) cho Icarus Verilog / GTKWave
-        $dumpfile("waveform.vcd");
-        $dumpvars(0, datapath_single_cycle_tb);
-
-        // B. Nạp chương trình vào bộ nhớ ROM
-        // Chọc mũi kim vào mảng rom bên trong u_instruction_mem để bơm data
-        $readmemh("tb/machine_code.txt", u_cpu.u_instruction_mem.rom);
-
-        // C. Quá trình Reset hệ thống
-        clk = 0;
-        rst = 1;     // Kéo rst lên 1 để Program Counter reset về 0
-        #10;         // Đợi 10ns (1 chu kỳ)
-        rst = 0;     // Nhả rst về 0, CPU CHÍNH THỨC BẮT ĐẦU CHẠY!
-
-        // D. Thời gian chạy
-        // Cho chạy 200ns (tương đương 20 chu kỳ clock / 20 lệnh) rồi dừng
-        #200;
-        $display("----------------------------------------");
-        $display("Hoan tat mo phong!");
-        $finish;
+        if($test$plusargs("VCD")) begin
+            $dumpfile("waveform.vcd"); $dumpvars(0,datapath_single_cycle_tb);
+        end
+        repeat(2) @(negedge clk); rst=0;
+        repeat(4) @(negedge clk);
+        check("addi r8",u_cpu.u_register.data[8],15);
+        check("addi r9",u_cpu.u_register.data[9],5);
+        check("sub",u_cpu.u_register.data[10],10);
+        check("slt",u_cpu.u_register.data[11],0);
+        repeat(2) @(negedge clk);
+        check("sw",u_cpu.u_data_mem.data[1],15);
+        check("lw",u_cpu.u_register.data[11],15);
+        @(negedge clk); check("taken beq",u_cpu.current_pc,36);
+        @(negedge clk); check("jump",u_cpu.current_pc,0);
+        check("skipped r12",u_cpu.u_register.data[12],0);
+        check("skipped r13",u_cpu.u_register.data[13],0);
+        $display("PASS demo: 10 checks on original machine-code program"); $finish;
     end
-
-    // ==========================================
-    // 5. THEO DÕI TÍN HIỆU (MONITOR)
-    // ==========================================
-    // Lệnh này sẽ tự động in ra màn hình mỗi khi có 1 biến bị thay đổi giá trị
-    initial begin
-        $display("Time\t | rst | PC\t\t | Instruction\t | ALU_Result");
-        $monitor("%0t\t |  %b  | %h\t | %h\t | %h", 
-                 $time, rst, u_cpu.current_pc, u_cpu.instruction, u_cpu.alu_result);
-    end
-
+    initial begin #10000; $fatal(1,"Demo timeout"); end
 endmodule
